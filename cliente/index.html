@@ -1,12 +1,340 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Cliente Cotizador</title>
+  <meta charset="utf-8" />
+  <title>Cotizador – Cliente Web</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    body{background:#f8f9fa}
+    .container{max-width:1100px}
+    .table td,.table th{vertical-align:middle}
+    .code-hint{font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size:.9rem}
+  </style>
 </head>
 <body>
-  <main id="app"></main>
-  <script src="app.js"></script>
+  <div class="container py-4">
+    <h1 class="mb-1">Cotizador – Cliente Web</h1>
+    <p class="text-muted mb-4">Interfaz simple en Bootstrap 5 que consume tu API REST (SQLite/Express). Realiza todas las operaciones CRUD.</p>
+
+    <div class="mb-3">
+      <label class="form-label">API Base URL</label>
+      <input id="baseUrl" class="form-control" value="http://localhost:8080" />
+      <div class="form-text">Asegúrate de tener el backend ejecutándose en esta URL.</div>
+    </div>
+
+    <ul class="nav nav-tabs" id="tabs">
+      <li class="nav-item"><a class="nav-link active" data-bs-toggle="tab" href="#clients">Clientes</a></li>
+      <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#services">Servicios</a></li>
+      <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#quotes">Cotizaciones</a></li>
+      <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#payments">Pagos</a></li>
+    </ul>
+
+    <div class="tab-content pt-3">
+      <!-- CLIENTS -->
+      <div class="tab-pane fade show active" id="clients">
+        <div class="row g-2 mb-2 align-items-end">
+          <div class="col-md-4">
+            <label class="form-label">Nombre</label>
+            <input class="form-control" id="client_name" placeholder="Ej. Panadería La Abuela" required>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Contacto</label>
+            <input class="form-control" id="client_contact" placeholder="email o teléfono" required>
+          </div>
+          <div class="col-md-2 d-grid">
+            <button id="btnAddClient" class="btn btn-primary">Agregar</button>
+          </div>
+          <div class="col-md-2 d-grid">
+            <button id="btnListClients" class="btn btn-outline-secondary">Listar Clientes</button>
+          </div>
+        </div>
+        <table class="table table-striped" id="tblClients">
+          <thead><tr><th>ID</th><th>Nombre</th><th>Contacto</th><th class="text-end">Acciones</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+
+      <!-- Modal Editar Cliente -->
+      <div class="modal fade" id="modalEditClient" tabindex="-1" aria-labelledby="modalEditClientLabel" aria-hidden="true">
+        <div class="modal-dialog">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h5 class="modal-title" id="modalEditClientLabel">Editar Cliente</h5>
+              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+              <input type="hidden" id="edit_client_id">
+              <div class="mb-3">
+                <label for="edit_client_name" class="form-label">Nombre</label>
+                <input type="text" class="form-control" id="edit_client_name" required>
+              </div>
+              <div class="mb-3">
+                <label for="edit_client_contact" class="form-label">Contacto</label>
+                <input type="text" class="form-control" id="edit_client_contact" required>
+              </div>
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+              <button type="button" class="btn btn-primary" id="btnSaveClientEdit">Guardar Cambios</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SERVICES -->
+      <div class="tab-pane fade" id="services">
+        <div class="row g-2 mb-2 align-items-end">
+          <div class="col-md-4">
+            <label class="form-label">Servicio</label>
+            <input class="form-control" id="service_name" placeholder="Ej. Instalación" required>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Descripción</label>
+            <input class="form-control" id="service_desc" placeholder="Opcional">
+          </div>
+          <div class="col-md-2">
+            <label class="form-label">Precio</label>
+            <input class="form-control" id="service_price" type="number" step="0.01" placeholder="0.00" required>
+          </div>
+          <div class="col-md-2 d-grid">
+            <button id="btnAddService" class="btn btn-primary">Agregar</button>
+          </div>
+        </div>
+        <table class="table table-striped" id="tblServices">
+          <thead><tr><th>ID</th><th>Servicio</th><th>Precio</th><th class="text-end">Acciones</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+
+      <!-- QUOTES -->
+      <div class="tab-pane fade" id="quotes">
+        <div class="row g-2 mb-2 align-items-end">
+          <div class="col-md-3">
+            <label class="form-label">Cliente</label>
+            <select class="form-select" id="quote_client" required></select>
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">Fecha</label>
+            <input class="form-control" id="quote_date" type="date" required>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Items JSON</label>
+            <input class="form-control code-hint" id="quote_items" placeholder='[{"service_id":1,"qty":2}]' required>
+          </div>
+          <div class="col-md-2 d-grid">
+            <button id="btnCreateQuote" class="btn btn-primary">Crear</button>
+          </div>
+        </div>
+        <table class="table table-striped" id="tblQuotes">
+          <thead><tr><th>ID</th><th>Cliente</th><th>Fecha</th><th>Total</th><th>Status</th><th class="text-end">Acciones</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+
+      <!-- PAYMENTS -->
+      <div class="tab-pane fade" id="payments">
+        <div class="row g-2 mb-2 align-items-end">
+          <div class="col-md-3">
+            <label class="form-label">Quote ID</label>
+            <input class="form-control" id="pay_quote" placeholder="ID de cotización" required>
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">Fecha</label>
+            <input class="form-control" id="pay_date" type="date" required>
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">Monto</label>
+            <input class="form-control" id="pay_amount" type="number" step="0.01" placeholder="0.00" required>
+          </div>
+          <div class="col-md-3 d-grid">
+            <button id="btnAddPayment" class="btn btn-primary">Registrar</button>
+          </div>
+        </div>
+        <table class="table table-striped" id="tblPayments">
+          <thead><tr><th>ID</th><th>Quote</th><th>Fecha</th><th>Monto</th><th class="text-end">Acciones</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    /* ========= Pequeño cliente API (Fetch) ========= */
+    const api = (baseUrl) => {
+      const h = (m, path, body) => fetch(`${baseUrl}${path}`, {
+        method: m, headers:{'Content-Type':'application/json'},
+        body: body? JSON.stringify(body): undefined
+      }).then(r => r.ok ? r.json() : r.json().then(e=>Promise.reject(e)));
+      return {
+        // clients
+        listClients: () => fetch(`${baseUrl}/api/clients`).then(r=>r.json()),
+        createClient: (payload) => h('POST','/api/clients',payload),
+        updateClient: (id, payload) => h('PUT',`/api/clients/${id}`,payload),
+        deleteClient: (id) => fetch(`${baseUrl}/api/clients/${id}`,{method:'DELETE'}).then(r=>r.json()),
+        // services
+        listServices: () => fetch(`${baseUrl}/api/services`).then(r=>r.json()),
+        createService: (payload) => h('POST','/api/services',payload),
+        deleteService: (id) => fetch(`${baseUrl}/api/services/${id}`,{method:'DELETE'}).then(r=>r.json()),
+        // quotes
+        listQuotes: () => fetch(`${baseUrl}/api/quotes`).then(r=>r.json()),
+        getQuote: (id) => fetch(`${baseUrl}/api/quotes/${id}`).then(r=>r.json()),
+        createQuote: (payload) => h('POST','/api/quotes',payload),
+        // payments
+        listPayments: () => fetch(`${baseUrl}/api/payments`).then(r=>r.json()),
+        createPayment: (payload) => h('POST','/api/payments',payload),
+      };
+    };
+
+    /* ========= DOM helpers ========= */
+    const $ = (sel) => document.querySelector(sel);
+    let svc;
+    function setBase(){ const b=$('#baseUrl').value.trim().replace(/\/+$/,''); svc = api(b); }
+
+    window.addEventListener('DOMContentLoaded', async () => {
+      setBase();
+      $('#baseUrl').addEventListener('change', setBase);
+
+      // Clientes
+      $('#btnAddClient').addEventListener('click', async () => {
+        const name=$('#client_name').value.trim();
+        const contact_info=$('#client_contact').value.trim();
+        if(!name||!contact_info) return alert('Completa nombre y contacto');
+        try{ 
+          await svc.createClient({name, contact_info}); 
+          $('#client_name').value=''; 
+          $('#client_contact').value=''; 
+          await renderClients(); 
+          await fillClientsSelect(); 
+        }catch(e){ alert(e.error||'Error'); }
+      });
+
+      $('#btnListClients').addEventListener('click', async () => {
+        await renderClients();
+      });
+
+      // Modal de edición
+      let editModal;
+      window.editClient = function(client) {
+        $('#edit_client_id').value = client.client_id;
+        $('#edit_client_name').value = client.name;
+        $('#edit_client_contact').value = client.contact_info;
+        if(!editModal) editModal = new bootstrap.Modal($('#modalEditClient'));
+        editModal.show();
+      };
+
+      $('#btnSaveClientEdit').addEventListener('click', async () => {
+        const id = $('#edit_client_id').value;
+        const name = $('#edit_client_name').value.trim();
+        const contact_info = $('#edit_client_contact').value.trim();
+        if(!name || !contact_info) return alert('Completa nombre y contacto');
+        try{
+          await svc.updateClient(id, {name, contact_info});
+          editModal.hide();
+          await renderClients();
+          await fillClientsSelect();
+        }catch(e){ alert(e.error||'Error'); }
+      });
+
+      await renderClients();
+
+      // Servicios
+      $('#btnAddService').addEventListener('click', async () => {
+        const service_name=$('#service_name').value.trim();
+        const description=$('#service_desc').value.trim();
+        const price=parseFloat($('#service_price').value);
+        if(!service_name||isNaN(price)) return alert('Servicio y precio válido');
+        try{ await svc.createService({service_name, description: description||null, price}); $('#service_name').value=''; $('#service_desc').value=''; $('#service_price').value=''; await renderServices(); }catch(e){ alert(e.error||'Error'); }
+      });
+      await renderServices();
+
+      // Cotizaciones
+      $('#btnCreateQuote').addEventListener('click', async () => {
+        const client_id=$('#quote_client').value; const quote_date=$('#quote_date').value; let items;
+        try{ items=JSON.parse($('#quote_items').value); }catch{ return alert('Items debe ser JSON válido'); }
+        try{ await svc.createQuote({client_id, quote_date, items}); $('#quote_items').value=''; await renderQuotes(); }catch(e){ alert(e.error||'Error'); }
+      });
+      await fillClientsSelect(); await renderQuotes();
+
+      // Pagos
+      $('#btnAddPayment').addEventListener('click', async () => {
+        const quote_id=$('#pay_quote').value.trim();
+        const payment_date=$('#pay_date').value; const payment_amount=parseFloat($('#pay_amount').value);
+        if(!quote_id||!payment_date||isNaN(payment_amount)) return alert('Completa los campos');
+        try{ await svc.createPayment({quote_id, payment_date, payment_amount}); $('#pay_quote').value=''; $('#pay_date').value=''; $('#pay_amount').value=''; await renderPayments(); }catch(e){ alert(e.error||'Error'); }
+      });
+      await renderPayments();
+    });
+
+    /* ========= Renders ========= */
+    async function renderClients(){
+      const rows = await svc.listClients();
+      const tbody = $('#tblClients tbody'); tbody.innerHTML='';
+      rows.forEach(r=>{
+        const tr=document.createElement('tr');
+        tr.innerHTML=`<td>${r.client_id}</td><td>${r.name}</td><td>${r.contact_info}</td>
+          <td class="text-end">
+            <button class="btn btn-sm btn-outline-primary me-1 btn-edit">Editar</button>
+            <button class="btn btn-sm btn-outline-danger btn-delete">Eliminar</button>
+          </td>`;
+        tr.querySelector('.btn-edit').onclick = () => editClient(r);
+        tr.querySelector('.btn-delete').onclick = async ()=>{ 
+          if(confirm(`¿Eliminar cliente "${r.name}"?`)) {
+            await svc.deleteClient(r.client_id); 
+            await renderClients(); 
+            await fillClientsSelect(); 
+          }
+        };
+        tbody.appendChild(tr);
+      });
+    }
+
+    async function renderServices(){
+      const rows = await svc.listServices();
+      const tbody = $('#tblServices tbody'); tbody.innerHTML='';
+      rows.forEach(r=>{
+        const tr=document.createElement('tr');
+        tr.innerHTML=`<td>${r.service_id}</td><td>${r.service_name}</td><td>$${Number(r.price).toFixed(2)}</td>
+          <td class="text-end"><button class="btn btn-sm btn-outline-danger">Eliminar</button></td>`;
+        tr.querySelector('button').onclick = async ()=>{ await svc.deleteService(r.service_id); await renderServices(); };
+        tbody.appendChild(tr);
+      });
+    }
+
+    async function renderQuotes(){
+      const rows = await svc.listQuotes();
+      const tbody = $('#tblQuotes tbody'); tbody.innerHTML='';
+      rows.forEach(r=>{
+        const tr=document.createElement('tr');
+        tr.innerHTML=`<td>${r.quote_id}</td><td>${r.client_name||r.client_id}</td><td>${r.quote_date}</td>
+          <td>$${Number(r.total_amount||0).toFixed(2)}</td><td>${r.status||'draft'}</td>
+          <td class="text-end"><button class="btn btn-sm btn-outline-secondary">Ver</button></td>`;
+        tr.querySelector('button').onclick = async ()=>{
+          const q = await svc.getQuote(r.quote_id);
+          alert(`Items:\n${q.items.map(i=>`• ${i.service_name||i.service_id} x ${i.qty} = $${i.line_total}`).join('\n')}`);
+        };
+        tbody.appendChild(tr);
+      });
+    }
+
+    async function renderPayments(){
+      const rows = await svc.listPayments();
+      const tbody = $('#tblPayments tbody'); tbody.innerHTML='';
+      rows.forEach(r=>{
+        const tr=document.createElement('tr');
+        tr.innerHTML=`<td>${r.payment_id}</td><td>${r.quote_id}</td><td>${r.payment_date}</td>
+          <td>$${Number(r.payment_amount).toFixed(2)}</td><td class="text-end"></td>`;
+        tbody.appendChild(tr);
+      });
+    }
+
+    async function fillClientsSelect(){
+      const list = await svc.listClients();
+      const sel = document.querySelector('#quote_client'); sel.innerHTML='';
+      list.forEach(c=>{ const opt=document.createElement('option'); opt.value=c.client_id; opt.textContent=`${c.client_id} — ${c.name}`; sel.appendChild(opt); });
+    }
+  </script>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
