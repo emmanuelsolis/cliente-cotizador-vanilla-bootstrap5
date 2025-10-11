@@ -1,5 +1,9 @@
 /* Funciones para interactuar con la API del cotizador. */
-export function api(baseUrl) {
+// define baseUrl
+const baseUrl = 'http://localhost:3000';
+
+export function api() {
+
   const h = (m, path, body) =>
     fetch(`${baseUrl}${path}`, {
       method: m,
