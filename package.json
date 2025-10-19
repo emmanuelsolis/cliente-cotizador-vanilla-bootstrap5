@@ -1,0 +1,16 @@
+{
+  "name": "cliente-cotizador",
+  "version": "1.0.0",
+  "private": true,
+  "engines": { 
+    "node": ">=18.x" 
+  },
+  "scripts": { 
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "path": "^0.12.7"
+  }
+}
